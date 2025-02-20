@@ -8,28 +8,43 @@ from verifiers.rubrics import MathRubric
 from verifiers.prompts import SIMPLE_PROMPT, MATH_FEW_SHOT
 from verifiers.utils import preprocess_dataset
 
+
 class MathEnv(SimpleEnv):
-    def __init__(self,
-                 dataset: str = "gsm8k",
-                 system_prompt: str = SIMPLE_PROMPT,    
-                 few_shot: List[Dict[str, str]] = MATH_FEW_SHOT[0],
-                 fields: List[str | Tuple[str, ...]] = ["reasoning", "answer"],
-                 **kwargs):
-        super().__init__(system_prompt=system_prompt, few_shot=few_shot, **kwargs)
+    def __init__(
+        self,
+        dataset: str = "gsm8k",
+        system_prompt: str = SIMPLE_PROMPT,
+        few_shot: List[Dict[str, str]] = MATH_FEW_SHOT[0],
+        fields: List[str | Tuple[str, ...]] = ["reasoning", "answer"],
+        **kwargs,
+    ):
+        # Define sampling args with stop sequence
+        sampling_args = {
+            "skip_special_tokens": False,
+            "spaces_between_special_tokens": False,
+            "stop": ["</answer>"],  # Stop at the end of answer tag
+            "include_stop_str_in_output": True,
+        }
+        super().__init__(
+            system_prompt=system_prompt,
+            few_shot=few_shot,
+            sampling_args=sampling_args,
+            **kwargs,
+        )
         self.parser = XMLParser(fields=fields)
         self.dataset_name = dataset
         self.dataset = preprocess_dataset(
             dataset_name=dataset,
             split="train",
             system_prompt=system_prompt,
-            few_shot=few_shot
-        ) 
+            few_shot=few_shot,
+        )
         self.eval_dataset = None
         self.rubric = MathRubric()
-    
+
     def get_dataset(self, **kwargs: Any):
         return self.dataset
-    
+
     def get_rubric(self, **kwargs: Any) -> List[RewardFunc]:
         return self.rubric.get_reward_funcs()
 
@@ -40,5 +55,5 @@ class MathEnv(SimpleEnv):
                 dataset_name=self.dataset_name,
                 split="test",
                 system_prompt=self.system_prompt,
-                few_shot=self.few_shot
-            )    
+                few_shot=self.few_shot,
+            )
